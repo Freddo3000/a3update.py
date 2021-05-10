@@ -11,8 +11,10 @@ def _setup(config):
         if sys.platform == 'linux' or sys.platform == 'linux2':
             click.echo('Note that running Swifty on Linux requires mono-complete')
         path_to_cli = click.prompt('Enter path to swifty-cli.exe',
+                                   default='swifty-cli.exe', show_default=True,
                                    type=click.Path(exists=True, resolve_path=True, dir_okay=False))
         path_to_json = click.prompt('Enter output path for swifty repo.json',
+                                    default='repo.json', show_default=True,
                                     type=click.Path(resolve_path=True, dir_okay=False))
 
         config['swifty'] = {
@@ -20,19 +22,17 @@ def _setup(config):
             'path_to_cli': path_to_cli,
             'path_to_json': path_to_json,
             'output_path': click.prompt('Enter output path for repo',
-                                        type=click.Path(resolve_path=True, file_okay=False)),
+                                        type=click.Path(exists=True, resolve_path=True, file_okay=False)),
         }
 
         swifty_dir = os.path.join(config['mod_dir'], 'swifty')
-        os.mkdir(swifty_dir)
-        os.mkdir(os.path.join(swifty_dir, 'optional'))
+        os.makedirs(swifty_dir)
+        os.makedirs(os.path.join(swifty_dir, 'optional'))
         swifty_config = {
             'repoName': click.prompt('Enter repo name'),
             'basePath': swifty_dir,
-            'iconImagePath': click.prompt('Enter repo icon path, relative to output path',
-                                          default='icon.png', show_default=True),
-            'repoImagePath': click.prompt('Enter repo image path, relative to output path',
-                                          default='repo.png', show_default=True),
+            'iconImagePath': 'icon.png',
+            'repoImagePath': 'repo.png',
             'clientParameters': '-skipIntro',
             'repoBasicAuthentication': {
                 'username': click.prompt('FTP Username (Leave blank if no authentication)',

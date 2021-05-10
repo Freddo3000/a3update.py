@@ -10,13 +10,13 @@ ARMA_APPID = 107410
 
 # noinspection PyGlobalUndefined
 @click.command()
-@click.option('--validate/--no-validate', default=True, type=bool, help='Validate apps and workshop items')
+@click.option('--validate/--no-validate', default=True, help='Validate apps and workshop items')
 @click.option('-u', '--username', prompt='Steam username', default='anonymous', show_default=True,
               help='Username used for Steam')
 @click.option('-p', '--password', prompt='Steam password', default='', show_default=True,
               hide_input=True, help='Password used for Steam')
 @click.option('-c', '--config', type=click.Path(readable=True, resolve_path=True),
-              default=os.path.join(os.getcwd(), 'a3update.yaml'), help='Path to a3update.yaml')
+              default='a3update.yaml', help='Path to a3update.yaml')
 @click.option('-n', '--no-update', is_flag=True, default=False, help='Skips updating mods and Arma')
 @click.option('-s', '---setup', is_flag=True, default=False, help='Runs initial setup')
 def cli(validate, username, password, config, no_update, _setup):
@@ -130,7 +130,6 @@ def find_bikeys(path):
 
     for root, dirs, files in os.walk(path):
         for file in files:
-            "".endswith('a')
             if file.lower().endswith('.bikey'):
                 keys.append(os.path.join(root, file))
     return keys
@@ -208,18 +207,32 @@ def setup(config_path):
         'arma_appid': 107410,
         'server_appid': 233780,
         'steamcmd_dir': click.prompt('Enter install path for SteamCMD',
+                                     default='SteamCMD', show_default=True,
                                      type=click.Path(file_okay=False, resolve_path=True)),
         'install_dir': click.prompt('Enter install path for Arma server',
+                                    default='server', show_default=True,
                                     type=click.Path(file_okay=False, resolve_path=True)),
         'mod_dir': click.prompt('Enter steam install path for mods',
+                                default='mods', show_default=True,
                                 type=click.Path(file_okay=False, resolve_path=True)),
-        'external_addon_dir': click.prompt('Enter directory to search for external addons', default='',
-                                           show_default=True, type=click.Path(file_okay=False, resolve_path=True)),
+        'external_addon_dir': click.prompt('Enter directory to search for external addons',
+                                           default='mods/external', show_default=True,
+                                           type=click.Path(file_okay=False, resolve_path=True)),
         'cdlc': list(map(int, (click.prompt("List of CDLCs, separated by spaces", default='').split()))),
         'collections': list(map(int, (click.prompt("List of Collections, separated by spaces", default='').split()))),
         'handle_keys': click.confirm('Handle bikey files automatically', default=False, show_default=True),
         'api_key': click.prompt('Enter Steam API key (https://steamcommunity.com/dev/apikey)'),
     }
+
+    # Create directories
+    if not os.path.exists(configuration['steamcmd_dir']):
+        os.makedirs(configuration['steamcmd_dir'])
+    if not os.path.exists(configuration['install_dir']):
+        os.makedirs(configuration['install_dir'])
+    if not os.path.exists(configuration['mod_dir']):
+        os.makedirs(configuration['mod_dir'])
+    if not os.path.exists(configuration['external_addon_dir']):
+        os.makedirs(configuration['external_addon_dir'])
 
     configuration['mod_dir_full'] = os.path.join(configuration['mod_dir'], 'steamapps',
                                                  'workshop', 'content', str(ARMA_APPID))
