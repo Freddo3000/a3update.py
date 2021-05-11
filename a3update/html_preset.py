@@ -1,6 +1,5 @@
 import os.path
 import click
-from steam.webapi import WebAPI
 
 
 def _setup(config):
@@ -125,26 +124,6 @@ def generate(mods, config):
                  '</td>\n'
                  '</tr>\n'
                  ).format(mod['name'], url, url))
-    f.write('</table>\n'
-            '</div>\n'
-            '<h2 class="list-heading">DLC</h2>\n'
-            '<div class="dlc-list">\n'
-            '<table>\n'
-            )
-
-    api = WebAPI(key=config['api_key'])
-    app_list = api.ISteamApps.GetAppList()['applist']['apps']
-    for appid in config['cdlc']:
-        for app in app_list:
-            if app['appid'] == appid:
-                mod_url = "https://store.steampowered.com/app/{}".format(appid)
-                f.write(('<tr data-type="DlcContainer">\n'
-                         '<td data-type="DisplayName">{}</td>\n'
-                         '<td>\n'
-                         '<a href="{}" data-type="Link">{}</a>\n'
-                         '</td>\n'
-                         '</tr>\n'
-                         ).format(app['name'], mod_url, mod_url))
     f.write('</table>\n'
             '</div>\n'
             '<div class="footer">\n'

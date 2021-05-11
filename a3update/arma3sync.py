@@ -36,17 +36,26 @@ def update(mods, config_yaml):
     from a3update.a3update import create_mod_link
 
     # Wipe current repo, to be recreated below
-    for filename in os.listdir(config_yaml['a3sync']['directory']):
-        f = os.path.join(config_yaml['a3sync']['directory'], filename)
-        if f.startswith('@'):
-            shutil.rmtree(f)
+    output_dir = config_yaml['a3sync']['directory']
+    for filename in os.listdir(output_dir):
+        if filename.startswith('@'):
+            shutil.rmtree(os.path.join(output_dir, filename))
 
     # Create symlinks to all mods used
     for mod in mods:
         create_mod_link(
             os.path.join(config_yaml['mod_dir_full'], mod['published_file_id']),
-            os.path.join(config_yaml['a3sync']['directory'], mod['folder_name'])
+            os.path.join(output_dir, mod['folder_name'])
         )
+    # Handle external mods
+    external_addon_dir = config_yaml['external_addon_dir']
+    if os.path.isdir(external_addon_dir):
+        for filename in os.listdir(external_addon_dir):
+            out_path = os.path.join(output_dir, filename.lower().replace(' ', '_'))
+            if not os.path.exists(out_path):
+                create_mod_link(os.path.join(external_addon_dir, filename), out_path)
+            else:
+                click.echo('ERR: Conflicting external addon "{}"'.format(filename))
 
     subprocess.call(['java', '-jar',
                      config_yaml['a3sync']['path_to_jar'],

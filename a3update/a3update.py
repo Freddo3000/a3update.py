@@ -44,7 +44,7 @@ def cli(validate, username, password, config, no_update, _setup):
         click.echo("SteamCMD installed")
     STEAM_CMD.login(username, password)
     global STEAM_WEBAPI
-    STEAM_WEBAPI = WebAPI(key=CONFIG_YAML['api_key'])
+    STEAM_WEBAPI = WebAPI(key=CONFIG_YAML['api_key'], https=False)
 
     # Load constants
     global WORKSHOP_DIR
@@ -53,16 +53,24 @@ def cli(validate, username, password, config, no_update, _setup):
     INSTALL_DIR = CONFIG_YAML['install_dir']
     global KEY_PATH
     KEY_PATH = os.path.join(INSTALL_DIR, 'keys')
+    global EXTERNAL_ADDON_DIR
+    EXTERNAL_ADDON_DIR = CONFIG_YAML['external_addon_dir']
 
     # Update apps (Arma 3 Dedicated Server, CDLCs)
     click.echo('Updating Apps')
-    appids = [CONFIG_YAML['server_appid']] + CONFIG_YAML['cdlc']
-    for appid in appids:
-        if not no_update:
-            STEAM_CMD.app_update(appid, INSTALL_DIR, validate)
+    if not no_update:
+        beta = CONFIG_YAML['beta']
+        if beta:
+            STEAM_CMD.app_update(CONFIG_YAML['server_appid'], INSTALL_DIR, validate, beta)
+        else:
+            STEAM_CMD.app_update(CONFIG_YAML['server_appid'], INSTALL_DIR, validate)
 
     # Update mods
     click.echo('Updating mods')
+    for filename in os.listdir(INSTALL_DIR):
+        if filename.startswith('@'):
+            shutil.rmtree(os.path.join(INSTALL_DIR, filename))
+
     if CONFIG_YAML['handle_keys']:
         # Delete key symlinks
         for filename in os.listdir(KEY_PATH):
@@ -88,9 +96,18 @@ def cli(validate, username, password, config, no_update, _setup):
             if not create_key_links(path):
                 click.echo('WARN: No bikeys found for: {}'.format(mod['name']))
 
+    # Handle external addons
+    if os.path.isdir(EXTERNAL_ADDON_DIR):
+        for filename in os.listdir(EXTERNAL_ADDON_DIR):
+            out_path = os.path.join(INSTALL_DIR, filename.lower().replace(' ', '_'))
+            if not os.path.exists(out_path):
+                create_mod_link(os.path.join(EXTERNAL_ADDON_DIR, filename), out_path)
+            else:
+                click.echo('ERR: Conflicting external addon "{}"'.format(filename))
+
     if CONFIG_YAML['a3sync']['active']:
         from a3update import arma3sync
-        click.echo('Updating ArmA3Sync Repo')
+        click.echo('Building ArmA3Sync Repo')
         arma3sync.update(mods, CONFIG_YAML)
 
     if CONFIG_YAML['html_preset']['active']:
@@ -100,7 +117,7 @@ def cli(validate, username, password, config, no_update, _setup):
 
     if CONFIG_YAML['swifty']['active']:
         from a3update import swifty
-        click.echo('Updating Swifty Repo')
+        click.echo('Building Swifty Repo')
         swifty.update(mods, CONFIG_YAML)
 
     click.echo('Finished!')
@@ -120,6 +137,7 @@ def create_key_links(path):
                 )
                 linked_keys.append(key_link)
             else:
+                linked_keys.append(key_link)
                 click.echo('WARN: Duplicate key: {}'.format(key_link))
 
     return linked_keys
@@ -218,7 +236,7 @@ def setup(config_path):
         'external_addon_dir': click.prompt('Enter directory to search for external addons',
                                            default='mods/external', show_default=True,
                                            type=click.Path(file_okay=False, resolve_path=True)),
-        'cdlc': list(map(int, (click.prompt("List of CDLCs, separated by spaces", default='').split()))),
+        'beta': click.confirm('Beta branch (Enter cdlc to install all cdlc, leave empty for regular)', default=''),
         'collections': list(map(int, (click.prompt("List of Collections, separated by spaces", default='').split()))),
         'handle_keys': click.confirm('Handle bikey files automatically', default=False, show_default=True),
         'api_key': click.prompt('Enter Steam API key (https://steamcommunity.com/dev/apikey)'),

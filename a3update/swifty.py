@@ -76,14 +76,18 @@ def update(mods, config_yaml):
     # Wipe current repo, to be recreated below
     for filename in os.listdir(repo_config['basePath']):
         if filename.startswith('@'):
-            shutil.rmtree(os.path.join(config_yaml['a3sync']['directory'], filename))
+            shutil.rmtree(os.path.join(repo_config['basePath'], filename))
 
-    for filename in os.listdir(os.path.join(repo_config['basePath'], 'optional')):
-        if filename.startswith('@'):
-            shutil.rmtree(os.path.join(config_yaml['a3sync']['directory'], filename))
+    # for filename in os.listdir(os.path.join(repo_config['basePath'], 'optional')):
+    #    if filename.startswith('@'):
+    #        shutil.rmtree(os.path.join(config_yaml['a3sync']['directory'], filename))
 
     for filename in os.listdir(config_yaml['swifty']['output_path']):
-        shutil.rmtree(os.path.join(config_yaml['a3sync']['directory'], filename))
+        f = os.path.join(config_yaml['swifty']['output_path'], filename)
+        if os.path.isfile(f):
+            os.remove(f)
+        else:
+            shutil.rmtree(f)
 
     # Create symlinks to all mods used
     for mod in mods:
@@ -91,6 +95,15 @@ def update(mods, config_yaml):
             os.path.join(config_yaml['mod_dir_full'], mod['published_file_id']),
             os.path.join(repo_config['basePath'], mod['folder_name'])
         )
+    # Handle external addons
+    external_addon_dir = config_yaml['external_addon_dir']
+    if os.path.isdir(external_addon_dir):
+        for filename in os.listdir(external_addon_dir):
+            out_path = os.path.join(repo_config['basePath'], filename.lower().replace(' ', '_'))
+            if not os.path.exists(out_path):
+                create_mod_link(os.path.join(external_addon_dir, filename), out_path)
+            else:
+                click.echo('ERR: Conflicting external addon "{}"'.format(filename))
 
     if sys.platform == 'linux' or sys.platform == 'linux2':
         subprocess.call(['mono', config_yaml['swifty']['path_to_cli'], 'create',
