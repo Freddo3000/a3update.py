@@ -4,6 +4,7 @@ import yaml
 import shutil
 from pysteamcmdwrapper import SteamCMD, SteamCMDException
 from steam.webapi import WebAPI
+from pathvalidate import sanitize_filename, sanitize_filepath
 
 ARMA_APPID = 107410
 
@@ -30,12 +31,12 @@ def cli(validate, username, password, config, no_update, _setup):
             config = click.prompt('Enter path to a3update.yaml',
                                   type=click.Path(exists=True, readable=True, resolve_path=True))
 
-    with open(config, 'r') as file:
+    with click.open_file(config, 'r') as file:
         global CONFIG_YAML
         CONFIG_YAML = yaml.safe_load(file)
 
     # Login to SteamCMD and WebAPI
-    click.echo("Checking SteamCMD install")
+    _log("Checking SteamCMD install")
     global STEAM_CMD
     STEAM_CMD = SteamCMD(CONFIG_YAML['steamcmd_dir'])
     try:
@@ -57,7 +58,7 @@ def cli(validate, username, password, config, no_update, _setup):
     EXTERNAL_ADDON_DIR = CONFIG_YAML['external_addon_dir']
 
     # Update apps (Arma 3 Dedicated Server, CDLCs)
-    click.echo('Updating Apps')
+    _log('Updating Arma 3 Server')
     if not no_update:
         beta = CONFIG_YAML['beta']
         if beta:
@@ -66,7 +67,7 @@ def cli(validate, username, password, config, no_update, _setup):
             STEAM_CMD.app_update(CONFIG_YAML['server_appid'], INSTALL_DIR, validate)
 
     # Update mods
-    click.echo('Updating mods')
+    _log('Updating mods')
     for filename in os.listdir(INSTALL_DIR):
         if filename.startswith('@'):
             shutil.rmtree(os.path.join(INSTALL_DIR, filename))
@@ -78,57 +79,62 @@ def cli(validate, username, password, config, no_update, _setup):
             if os.path.islink(f):
                 os.unlink(f)
 
-    mods = workshop_ids_to_mod_array(get_collection_workshop_ids(CONFIG_YAML['collections']))
-    for mod in mods:
-        click.echo('Updating {}'.format(mod['name']))
+    mods = _workshop_ids_to_mod_array(_get_collection_workshop_ids(CONFIG_YAML['collections']))
+    with click.progressbar(mods, label='Mod update progress') as bar:
+        for mod in bar:
+            _log('Updating {}'.format(mod['name']))
 
-        # Create symbolic links to keep files lowercase without renaming
-        if not no_update:
-            STEAM_CMD.workshop_update(ARMA_APPID, mod['published_file_id'], CONFIG_YAML['mod_dir'], validate)
-        path = os.path.join(WORKSHOP_DIR, mod['published_file_id'])
-        create_mod_link(
-            path,
-            os.path.join(INSTALL_DIR, mod['folder_name'])
-        )
+            # Create symbolic links to keep files lowercase without renaming
+            if not no_update:
+                STEAM_CMD.workshop_update(ARMA_APPID, mod['published_file_id'],
+                                          CONFIG_YAML['mod_dir'], validate, n_tries=25)
+            path = os.path.join(WORKSHOP_DIR, mod['published_file_id'])
+            _create_mod_link(
+                path,
+                os.path.join(INSTALL_DIR, mod['folder_name'])
+            )
 
-        if CONFIG_YAML['handle_keys']:
-            # Create key symlinks
-            if not create_key_links(path):
-                click.echo('WARN: No bikeys found for: {}'.format(mod['name']))
+            if CONFIG_YAML['handle_keys']:
+                # Create key symlinks
+                if not _create_key_links(path):
+                    _log('WARN: No bikeys found for: {}'.format(mod['name']), e=True)
 
     # Handle external addons
     if os.path.isdir(EXTERNAL_ADDON_DIR):
         for filename in os.listdir(EXTERNAL_ADDON_DIR):
-            out_path = os.path.join(INSTALL_DIR, filename.lower().replace(' ', '_'))
+            out_path = os.path.join(INSTALL_DIR, _filename(filename))
             if not os.path.exists(out_path):
-                create_mod_link(os.path.join(EXTERNAL_ADDON_DIR, filename), out_path)
+                _create_mod_link(os.path.join(EXTERNAL_ADDON_DIR, filename), out_path)
             else:
-                click.echo('ERR: Conflicting external addon "{}"'.format(filename))
+                _log('ERR: Conflicting external addon "{}"'.format(filename), e=True)
 
     if CONFIG_YAML['a3sync']['active']:
         from a3update import arma3sync
-        click.echo('Building ArmA3Sync Repo')
+        _log('Building ArmA3Sync Repo')
         arma3sync.update(mods, CONFIG_YAML)
+        _log('Finished building ArmA3Sync Repo')
 
     if CONFIG_YAML['html_preset']['active']:
         from a3update import html_preset
-        click.echo('Generating Arma Launcher Preset')
+        _log('Generating Arma Launcher Preset')
         html_preset.generate(mods, CONFIG_YAML)
+        _log('Finished generating Arma Launcher Preset')
 
     if CONFIG_YAML['swifty']['active']:
         from a3update import swifty
-        click.echo('Building Swifty Repo')
+        _log('Building Swifty Repo')
         swifty.update(mods, CONFIG_YAML)
+        _log('Finished building Swifty Repo')
 
-    click.echo('Finished!')
+    _log('Finished!')
 
 
-def create_key_links(path):
-    keys = find_bikeys(path)
+def _create_key_links(path):
+    keys = _find_bikeys(path)
     linked_keys = []
     if keys:
         for key in keys:
-            key_link = os.path.basename(key).lower()
+            key_link = _filename(os.path.basename(key))
             key_path = os.path.join(KEY_PATH, key_link)
             if not os.path.exists(key_path):
                 os.symlink(
@@ -138,12 +144,12 @@ def create_key_links(path):
                 linked_keys.append(key_link)
             else:
                 linked_keys.append(key_link)
-                click.echo('WARN: Duplicate key: {}'.format(key_link))
+                _log('WARN: Duplicate key: {}'.format(key_link), e=True)
 
     return linked_keys
 
 
-def find_bikeys(path):
+def _find_bikeys(path):
     keys = []
 
     for root, dirs, files in os.walk(path):
@@ -153,22 +159,45 @@ def find_bikeys(path):
     return keys
 
 
-def create_mod_link(input_path, output_path):
+def _filename(f):
+    return sanitize_filename(f.lower().replace(' ', '_'), platform='auto')
+
+
+def _log(t, e=False):
+    click.echo("", err=e)
+    click.echo("{{0:=<{}}}".format(len(t)).format(""), err=e)
+    click.echo(t, err=e)
+    click.echo("{{0:=<{}}}".format(len(t)).format(""), err=e)
+
+
+def _create_mod_link(input_path, output_path):
     if os.path.isdir(output_path):
         shutil.rmtree(output_path)
 
-    os.mkdir(output_path)
+    os.mkdir(sanitize_filepath(output_path, platform='auto'))
 
     for filename in os.listdir(input_path):
         f = os.path.join(input_path, filename)
         if os.path.isdir(f):
-            create_mod_link(f, os.path.join(output_path, filename.lower()))
+            _create_mod_link(
+                f,
+                os.path.join(
+                    output_path,
+                    _filename(filename)
+                )
+            )
         else:
-            os.symlink(f, os.path.join(output_path, filename.lower()))
+            os.symlink(
+                f,
+                os.path.join(
+                    output_path,
+                    _filename(filename)
+                )
+            )
 
 
-def workshop_ids_to_mod_array(workshop_ids):
-    published_file_details = get_published_file_details(workshop_ids)
+def _workshop_ids_to_mod_array(workshop_ids):
+    published_file_details = _get_published_file_details(workshop_ids)
 
     mod_arr = []
     for i in range(0, published_file_details['resultcount']):
@@ -176,47 +205,73 @@ def workshop_ids_to_mod_array(workshop_ids):
 
         mod_arr.append({
             'name': file_details['title'],
-            'folder_name': '@{}'.format(file_details['title'].lower().replace(' ', '_')),
+            'folder_name': '@{}'.format(_filename(file_details['title'])),
             'published_file_id': file_details['publishedfileid'],
         })
 
     return mod_arr
 
 
-def get_collection_workshop_ids(collection_ids, nested_collections=True):
+def _get_collection_workshop_ids(collection_ids, nested_collections=True):
     workshop_items = []
-    collection_details = get_collection_details(collection_ids)
+    collection_details = _get_collection_details(collection_ids)
 
     for i in range(0, collection_details['resultcount']):
         collection = collection_details['collectiondetails'][i]
-        click.echo('Processing collection {}'.format(collection['publishedfileid']))
+        click.echo('Processing collection "{}"'.format(
+            _get_published_file_details([collection['publishedfileid']])['publishedfiledetails'][0]['title']
+        ))
 
         for c in collection['children']:
             filetype = c['filetype']
             if nested_collections and filetype == 2:
                 # Recursion on nested collections, hopefully we don't run into an infinite loop
-                workshop_items = workshop_items + get_collection_workshop_ids([c['publishedfileid']])
+                workshop_items = workshop_items + _get_collection_workshop_ids([c['publishedfileid']])
             elif filetype == 0:
                 mod = c['publishedfileid']
                 if mod not in workshop_items:
                     workshop_items.append(mod)
             else:
-                click.echo("Unknown filetype encountered: '{}' on published file: '{}'".format(filetype,
-                                                                                               c['publishedfileid']))
+                _log(
+                    "Unknown filetype encountered: '{}' on published file: '{}'".format(filetype, c['publishedfileid']),
+                    e=True
+                )
 
     return workshop_items
 
 
 # https://steamapi.xpaw.me/#ISteamRemoteStorage/GetCollectionDetails
-def get_collection_details(collection_ids):
-    return STEAM_WEBAPI.ISteamRemoteStorage.GetCollectionDetails(collectioncount=len(collection_ids),
-                                                                 publishedfileids=collection_ids)['response']
+def _get_collection_details(collection_ids):
+    response = STEAM_WEBAPI.ISteamRemoteStorage.GetCollectionDetails(collectioncount=len(collection_ids),
+                                                                     publishedfileids=collection_ids)
+    if 'response' in response:
+        response = response['response']
+        if response['resultcount'] != len(collection_ids):
+            _log("""
+                Querying Steam API for collections {} only returned {} collections. 
+                Check collection visibility and ID
+                """.format(collection_ids, response['resultcount']), e=True)
+        return response
+    else:
+        _log('Querying Steam API for collections {} returned no response'.format(collection_ids), e=True)
+        return {}
 
 
 # https://steamapi.xpaw.me/#ISteamRemoteStorage/GetPublishedFileDetails
-def get_published_file_details(published_file_ids):
-    return STEAM_WEBAPI.ISteamRemoteStorage.GetPublishedFileDetails(itemcount=len(published_file_ids),
-                                                                    publishedfileids=published_file_ids)['response']
+def _get_published_file_details(published_file_ids):
+    response = STEAM_WEBAPI.ISteamRemoteStorage.GetPublishedFileDetails(itemcount=len(published_file_ids),
+                                                                        publishedfileids=published_file_ids)
+    if 'response' in response:
+        response = response['response']
+        if response['resultcount'] != len(published_file_ids):
+            _log("""
+                Querying Steam API for workshop items {} only returned {} items. 
+                Check item visibility and ID"""
+                 .format(published_file_ids, response['resultcount']), e=True)
+        return response
+    else:
+        _log('Querying Steam API for workshop items {} returned no response'.format(published_file_ids), e=True)
+        return {}
 
 
 def setup(config_path):
@@ -236,7 +291,7 @@ def setup(config_path):
         'external_addon_dir': click.prompt('Enter directory to search for external addons',
                                            default='mods/external', show_default=True,
                                            type=click.Path(file_okay=False, resolve_path=True)),
-        'beta': click.confirm('Beta branch (Enter cdlc to install all cdlc, leave empty for regular)', default=''),
+        'beta': click.prompt('Beta branch (Enter cdlc to install all cdlc, leave empty for regular)', default=''),
         'collections': list(map(int, (click.prompt("List of Collections, separated by spaces", default='').split()))),
         'handle_keys': click.confirm('Handle bikey files automatically', default=False, show_default=True),
         'api_key': click.prompt('Enter Steam API key (https://steamcommunity.com/dev/apikey)'),
@@ -267,9 +322,9 @@ def setup(config_path):
     from a3update import html_preset
     html_preset._setup(configuration)
 
-    with open(config_path, 'w') as f:
+    with click.open_file(config_path, 'w') as f:
         f.write(yaml.safe_dump(configuration))
-        click.echo('Dumped configuration to: {}'.format(config_path))
+        _log('Dumped configuration to: {}'.format(config_path))
 
 
 if __name__ == '__main__':

@@ -10,7 +10,8 @@ setup(
         'PyYAML',
         'Py-SteamCMD-Wrapper',
         'steam',
-        'pycryptodomex'
+        'pycryptodomex',
+        'pathvalidate',
     ],
     entry_points='''
         [console_scripts]

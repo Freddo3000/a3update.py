@@ -1,5 +1,6 @@
 import os.path
 import click
+from a3update.a3update import _log
 
 
 def _setup(config):
@@ -22,7 +23,9 @@ def _setup(config):
 
 
 def generate(mods, config):
-    f = open(config['html_preset']['path_to_html'], "w")
+    _log("Generating modpack HTML preset")
+    f = click.open_file(config['html_preset']['path_to_html'], "w")
+    click.echo('Writing header')
     f.write(('<?xml version="1.0" encoding="utf-8"?>\n'
              '<html>\n\n'
              '<!--Created using a3update.py: https://gist.github.com/Freddo3000/a5cd0494f649db75e43611122c9c3f15-->\n'
@@ -112,6 +115,7 @@ def generate(mods, config):
              '<table>\n'
              ).format("Modpack", config['html_preset']['name']))
 
+    click.echo('Writing mods')
     for mod in mods:
         url = 'https://steamcommunity.com/sharedfiles/filedetails/?id={}'.format(mod['published_file_id'])
         f.write(('<tr data-type="ModContainer">\n'
@@ -124,6 +128,8 @@ def generate(mods, config):
                  '</td>\n'
                  '</tr>\n'
                  ).format(mod['name'], url, url))
+        click.echo('Wrote mod: {}'.format(mod['name']))
+    click.echo('Writing footer')
     f.write('</table>\n'
             '</div>\n'
             '<div class="footer">\n'
@@ -132,3 +138,4 @@ def generate(mods, config):
             '</body>\n'
             '</html>\n'
             )
+    click.echo('Wrote modpack HTML preset file to: {}'.format(f.name))

@@ -4,6 +4,7 @@ import sys
 import click
 import subprocess
 import shutil
+from a3update.a3update import _create_mod_link, _filename, _log
 
 
 def _setup(config):
@@ -56,9 +57,9 @@ def _setup(config):
 
         swifty_config['servers'] = servers
 
-        with open(path_to_json, 'w') as f:
+        with click.open_file(path_to_json, 'w') as f:
             f.write(json.dumps(swifty_config))
-            click.echo('Dumped swifty configuration to: {}'.format(path_to_json))
+            _log('Dumped swifty configuration to: {}'.format(path_to_json))
     else:
         config['swifty'] = {
             'active': False,
@@ -69,9 +70,8 @@ def _setup(config):
 
 
 def update(mods, config_yaml):
-    from a3update.a3update import create_mod_link
 
-    repo_config = json.load(open(config_yaml['swifty']['path_to_json']))
+    repo_config = json.load(click.open_file(config_yaml['swifty']['path_to_json']))
 
     # Wipe current repo, to be recreated below
     for filename in os.listdir(repo_config['basePath']):
@@ -91,7 +91,7 @@ def update(mods, config_yaml):
 
     # Create symlinks to all mods used
     for mod in mods:
-        create_mod_link(
+        _create_mod_link(
             os.path.join(config_yaml['mod_dir_full'], mod['published_file_id']),
             os.path.join(repo_config['basePath'], mod['folder_name'])
         )
@@ -99,11 +99,11 @@ def update(mods, config_yaml):
     external_addon_dir = config_yaml['external_addon_dir']
     if os.path.isdir(external_addon_dir):
         for filename in os.listdir(external_addon_dir):
-            out_path = os.path.join(repo_config['basePath'], filename.lower().replace(' ', '_'))
+            out_path = os.path.join(repo_config['basePath'], _filename(filename))
             if not os.path.exists(out_path):
-                create_mod_link(os.path.join(external_addon_dir, filename), out_path)
+                _create_mod_link(os.path.join(external_addon_dir, filename), out_path)
             else:
-                click.echo('ERR: Conflicting external addon "{}"'.format(filename))
+                _log('ERR: Conflicting external addon "{}"'.format(filename), e=True)
 
     if sys.platform == 'linux' or sys.platform == 'linux2':
         subprocess.call(['mono', config_yaml['swifty']['path_to_cli'], 'create',
