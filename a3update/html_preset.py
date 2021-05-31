@@ -1,13 +1,13 @@
 import os.path
 import click
-from a3update.a3update import _log
+from a3update.a3update import _log, _filename
 
 
 def _setup(config):
     if click.confirm("Generate Arma 3 Preset"):
         preset_name = click.prompt('Enter Preset Name')
         path_to_html = click.prompt('Enter output path for preset .html',
-                                    default=os.path.join(os.getcwd(), preset_name.lower().replace(' ', '_') + ".html"),
+                                    default=_filename(preset_name + ".html"),
                                     show_default=True, type=click.Path(exists=False, resolve_path=True, dir_okay=False))
         config['html_preset'] = {
             'active': True,

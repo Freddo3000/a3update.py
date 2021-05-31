@@ -291,7 +291,7 @@ def setup(config_path):
         'external_addon_dir': click.prompt('Enter directory to search for external addons',
                                            default='mods/external', show_default=True,
                                            type=click.Path(file_okay=False, resolve_path=True)),
-        'beta': click.prompt('Beta branch (Enter cdlc to install all cdlc, leave empty for regular)', default=''),
+        'beta': click.prompt('Beta branch', default=''),
         'collections': list(map(int, (click.prompt("List of Collections, separated by spaces", default='').split()))),
         'handle_keys': click.confirm('Handle bikey files automatically', default=False, show_default=True),
         'api_key': click.prompt('Enter Steam API key (https://steamcommunity.com/dev/apikey)'),
