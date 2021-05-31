@@ -75,7 +75,7 @@ def cli(validate, username, password, config, no_update, _setup):
     if CONFIG_YAML['handle_keys']:
         # Delete key symlinks
         for filename in os.listdir(KEY_PATH):
-            f = os.path.join(INSTALL_DIR, filename)
+            f = os.path.join(KEY_PATH, filename)
             if os.path.islink(f):
                 os.unlink(f)
 
