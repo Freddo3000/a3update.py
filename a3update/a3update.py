@@ -1,3 +1,5 @@
+import fnmatch
+
 import click
 import os
 import yaml
@@ -170,6 +172,14 @@ def _log(t, e=False):
     click.echo("{{0:=<{}}}".format(len(t)).format(""), err=e)
 
 
+def _is_ignored_file(f):
+    for p in CONFIG_YAML['files_folders_to_ignore']:
+        if fnmatch.fnmatch(f, p):
+            return True
+
+    return False
+
+
 def _create_mod_link(input_path, output_path):
     if os.path.isdir(output_path):
         shutil.rmtree(output_path)
@@ -178,22 +188,25 @@ def _create_mod_link(input_path, output_path):
 
     for filename in os.listdir(input_path):
         f = os.path.join(input_path, filename)
-        if os.path.isdir(f):
-            _create_mod_link(
-                f,
-                os.path.join(
-                    output_path,
-                    _filename(filename)
-                )
-            )
+        if _is_ignored_file(filename):
+            click.echo('Ignored file/folder: {}'.format(f))
         else:
-            os.symlink(
-                f,
-                os.path.join(
-                    output_path,
-                    _filename(filename)
+            if os.path.isdir(f):
+                _create_mod_link(
+                    f,
+                    os.path.join(
+                        output_path,
+                        _filename(filename)
+                    )
                 )
-            )
+            else:
+                os.symlink(
+                    f,
+                    os.path.join(
+                        output_path,
+                        _filename(filename)
+                    )
+                )
 
 
 def _workshop_ids_to_mod_array(workshop_ids):
@@ -295,6 +308,8 @@ def setup(config_path):
         'collections': list(map(int, (click.prompt("List of Collections, separated by spaces", default='').split()))),
         'handle_keys': click.confirm('Handle bikey files automatically', default=False, show_default=True),
         'api_key': click.prompt('Enter Steam API key (https://steamcommunity.com/dev/apikey)'),
+        'files_folders_to_ignore': (click.prompt("List of files and folders to ignore, separated by spaces. "
+                                                 "Wildcards supported.", default='').split()),
     }
 
     # Create directories
