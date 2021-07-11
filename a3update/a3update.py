@@ -8,6 +8,10 @@ from pysteamcmdwrapper import SteamCMD, SteamCMDException, SteamCMD_command
 from steam.webapi import WebAPI
 from pathvalidate import sanitize_filename, sanitize_filepath
 
+import urllib.parse
+
+urllib.parse.urlparse()
+
 ARMA_APPID = 107410
 
 
@@ -160,7 +164,11 @@ def _find_bikeys(path):
 
 
 def _filename(f):
-    return sanitize_filename(f.lower().replace(' ', '_').replace('+', ''), platform='universal')
+    f = f.lower()  # Convert to lowercase for better unix/windows compatibility
+    f = f.replace(' ', '_')  # Replace spaces with underscores
+    f = f.replace('%20', '_')  # Replace url encoded spaces
+    f = f.replace('+', '')  # Remove plus signs
+    return sanitize_filename(f, platform='universal')
 
 
 def _log(t, e=False):
