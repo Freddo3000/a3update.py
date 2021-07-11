@@ -8,10 +8,6 @@ from pysteamcmdwrapper import SteamCMD, SteamCMDException, SteamCMD_command
 from steam.webapi import WebAPI
 from pathvalidate import sanitize_filename, sanitize_filepath
 
-import urllib.parse
-
-urllib.parse.urlparse()
-
 ARMA_APPID = 107410
 
 
