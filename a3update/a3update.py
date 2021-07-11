@@ -160,7 +160,7 @@ def _find_bikeys(path):
 
 
 def _filename(f):
-    return sanitize_filename(f.lower().replace(' ', '_'), platform='universal')
+    return sanitize_filename(f.lower().replace(' ', '_').replace('+', ''), platform='universal')
 
 
 def _log(t, e=False):
