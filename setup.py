@@ -7,7 +7,7 @@ setup(name='a3update.py',
       install_requires=[
           'Click',
           'PyYAML',
-          'Py-SteamCMD-Wrapper>=0.0.5',
+          'Py-SteamCMD-Wrapper>=1.1.0',
           'steam',
           'pycryptodomex',
           'pathvalidate',

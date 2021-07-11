@@ -4,7 +4,7 @@ import click
 import os
 import yaml
 import shutil
-from pysteamcmdwrapper import SteamCMD, SteamCMDException
+from pysteamcmdwrapper import SteamCMD, SteamCMDException, SteamCMD_command
 from steam.webapi import WebAPI
 from pathvalidate import sanitize_filename, sanitize_filepath
 
@@ -62,11 +62,7 @@ def cli(validate, username, password, config, no_update, _setup):
     # Update apps (Arma 3 Dedicated Server, CDLCs)
     _log('Updating Arma 3 Server')
     if not no_update:
-        beta = CONFIG_YAML['beta']
-        if beta:
-            STEAM_CMD.app_update(CONFIG_YAML['server_appid'], INSTALL_DIR, validate, beta)
-        else:
-            STEAM_CMD.app_update(CONFIG_YAML['server_appid'], INSTALL_DIR, validate)
+        STEAM_CMD.app_update(CONFIG_YAML['server_appid'], INSTALL_DIR, validate, CONFIG_YAML['beta'])
 
     # Update mods
     _log('Updating mods')
@@ -82,24 +78,26 @@ def cli(validate, username, password, config, no_update, _setup):
                 os.unlink(f)
 
     mods = _workshop_ids_to_mod_array(_get_collection_workshop_ids(CONFIG_YAML['collections']))
-    with click.progressbar(mods, label='Mod update progress') as bar:
-        for mod in bar:
-            _log('Updating {}'.format(mod['name']))
+    ws_update_command = SteamCMD_command()
+    if not no_update:
+        ws_update_command.force_install_dir(WORKSHOP_DIR)
+        for mod in mods:
+            ws_update_command.workshop_download_item(ARMA_APPID, mod['published_file_id'], validate=True)
+    STEAM_CMD.execute(ws_update_command, n_tries=50)
 
-            # Create symbolic links to keep files lowercase without renaming
-            if not no_update:
-                STEAM_CMD.workshop_update(ARMA_APPID, mod['published_file_id'],
-                                          CONFIG_YAML['mod_dir'], validate, n_tries=25)
-            path = os.path.join(WORKSHOP_DIR, mod['published_file_id'])
-            _create_mod_link(
-                path,
-                os.path.join(INSTALL_DIR, mod['folder_name'])
-            )
+    # Generate file paths
+    for mod in mods:
+        # Create symbolic links to keep files lowercase without renaming
+        path = os.path.join(WORKSHOP_DIR, mod['published_file_id'])
+        _create_mod_link(
+            path,
+            os.path.join(INSTALL_DIR, mod['folder_name'])
+        )
 
-            if CONFIG_YAML['handle_keys']:
-                # Create key symlinks
-                if not _create_key_links(path):
-                    _log('WARN: No bikeys found for: {}'.format(mod['name']), e=True)
+        if CONFIG_YAML['handle_keys']:
+            # Create key symlinks
+            if not _create_key_links(path):
+                _log('WARN: No bikeys found for: {}'.format(mod['name']), e=True)
 
     # Handle external addons
     if os.path.isdir(EXTERNAL_ADDON_DIR):
@@ -173,9 +171,10 @@ def _log(t, e=False):
 
 
 def _is_ignored_file(f):
-    for p in CONFIG_YAML['files_folders_to_ignore']:
-        if fnmatch.fnmatch(f, p):
-            return True
+    if CONFIG_YAML['files_folders_to_ignore']:
+        for p in CONFIG_YAML['files_folders_to_ignore']:
+            if fnmatch.fnmatch(f, p):
+                return True
 
     return False
 
