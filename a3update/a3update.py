@@ -77,8 +77,8 @@ def cli(validate, username, password, config, no_update, _setup):
             if os.path.islink(f):
                 os.unlink(f)
 
+    mods = _workshop_ids_to_mod_array(_get_collection_workshop_ids(CONFIG_YAML['collections']))
     if not no_update:
-        mods = _workshop_ids_to_mod_array(_get_collection_workshop_ids(CONFIG_YAML['collections']))
         while len(mods) > 0:
             # Only update 25 mods at a time
             # avoids command line length limitations
