@@ -77,13 +77,20 @@ def cli(validate, username, password, config, no_update, _setup):
             if os.path.islink(f):
                 os.unlink(f)
 
-    mods = _workshop_ids_to_mod_array(_get_collection_workshop_ids(CONFIG_YAML['collections']))
-    ws_update_command = SteamCMD_command()
     if not no_update:
-        ws_update_command.force_install_dir(CONFIG_YAML['mod_dir'])
-        for mod in mods:
-            ws_update_command.workshop_download_item(ARMA_APPID, mod['published_file_id'], validate=True)
-    STEAM_CMD.execute(ws_update_command, n_tries=50)
+        mods = _workshop_ids_to_mod_array(_get_collection_workshop_ids(CONFIG_YAML['collections']))
+        while len(mods) > 0:
+            # Only update 25 mods at a time
+            # avoids command line length limitations
+            # and prevents having to start over from the
+            # absolute beginning when it fails
+            mods_slice = mods[:25]
+            ws_update_command = SteamCMD_command()
+            ws_update_command.force_install_dir(CONFIG_YAML['mod_dir'])
+            for mod in mods_slice:
+                ws_update_command.workshop_download_item(ARMA_APPID, mod['published_file_id'], validate=True)
+            STEAM_CMD.execute(ws_update_command, n_tries=50)
+            mods = mods[25:]
 
     # Generate file paths
     for mod in mods:
