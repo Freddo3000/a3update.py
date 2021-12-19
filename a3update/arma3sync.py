@@ -38,6 +38,7 @@ def update(mods, config_yaml):
 
     # Store .zsync files in a temporary directory
     zsync_storage = tempfile.mkdtemp()
+    cache_count = 0
     for root, dirs, files in os.walk(output_dir):
         temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
 
@@ -46,7 +47,10 @@ def update(mods, config_yaml):
 
         for f in files:
             if f.endswith('.zsync'):
+                cache_count += 1
                 shutil.copy(os.path.join(root, f), os.path.join(temp_dir, f))
+
+    print('Cached .zsync files:', cache_count)
 
     # Wipe current repo, to be recreated below
     for filename in os.listdir(output_dir):
@@ -70,13 +74,16 @@ def update(mods, config_yaml):
                 _log('ERR: Conflicting external addon "{}"'.format(filename), e=True)
 
     # Retrieve stored .zsync files
+    uncache_count = 0
     for root, dirs, files in os.walk(output_dir):
         temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
 
         for f in files:
             zsync = f.join('.zsync')
             if os.path.exists(zsync):
+                uncache_count += 1
                 shutil.copy(os.path.join(temp_dir, zsync), os.path.join(root, zsync))
+    print('Reused .zsync files:', uncache_count)
 
     subprocess.call(['java', '-jar',
                      config_yaml['a3sync']['path_to_jar'],
