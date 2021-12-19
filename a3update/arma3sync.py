@@ -2,6 +2,7 @@ import os
 import click
 import subprocess
 import shutil
+import tempfile
 from a3update.a3update import _create_mod_link, _filename, _log
 
 
@@ -33,9 +34,21 @@ def _setup(config):
 
 
 def update(mods, config_yaml):
+    output_dir = config_yaml['a3sync']['directory']
+
+    # Store .zsync files in a temporary directory
+    zsync_storage = tempfile.mkdtemp()
+    for root, dirs, files in os.walk(output_dir):
+        temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
+
+        if not os.path.exists(temp_dir):
+            os.mkdir(temp_dir)
+
+        for f in files:
+            if f.endswith('.zsync'):
+                os.rename(os.path.join(root, f), os.path.join(temp_dir, f))
 
     # Wipe current repo, to be recreated below
-    output_dir = config_yaml['a3sync']['directory']
     for filename in os.listdir(output_dir):
         if filename.startswith('@'):
             shutil.rmtree(os.path.join(output_dir, filename))
@@ -55,6 +68,15 @@ def update(mods, config_yaml):
                 _create_mod_link(os.path.join(external_addon_dir, filename), out_path)
             else:
                 _log('ERR: Conflicting external addon "{}"'.format(filename), e=True)
+
+    # Retrieve stored .zsync files
+    for root, dirs, files in os.walk(output_dir):
+        temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
+
+        for f in files:
+            zsync = f.join('.zsync')
+            if os.path.exists(zsync):
+                os.rename(os.path.join(temp_dir, zsync), os.path.join(root, zsync))
 
     subprocess.call(['java', '-jar',
                      config_yaml['a3sync']['path_to_jar'],
