@@ -3,12 +3,6 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/venv" />
-      <excludeFolder url="file://$MODULE_DIR$/out" />
-      <excludeFolder url="file://$MODULE_DIR$/a3update.py.egg-info" />
-      <excludeFolder url="file://$MODULE_DIR$/profiles" />
-      <excludeFolder url="file://$MODULE_DIR$/resources" />
-      <excludeFolder url="file://$MODULE_DIR$/build" />
-      <excludeFolder url="file://$MODULE_DIR$/dist" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.8 (a3update.py)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
