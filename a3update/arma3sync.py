@@ -46,7 +46,7 @@ def update(mods, config_yaml):
 
         for f in files:
             if f.endswith('.zsync'):
-                os.rename(os.path.join(root, f), os.path.join(temp_dir, f))
+                shutil.copy(os.path.join(root, f), os.path.join(temp_dir, f))
 
     # Wipe current repo, to be recreated below
     for filename in os.listdir(output_dir):
@@ -76,7 +76,7 @@ def update(mods, config_yaml):
         for f in files:
             zsync = f.join('.zsync')
             if os.path.exists(zsync):
-                os.rename(os.path.join(temp_dir, zsync), os.path.join(root, zsync))
+                shutil.copy(os.path.join(temp_dir, zsync), os.path.join(root, zsync))
 
     subprocess.call(['java', '-jar',
                      config_yaml['a3sync']['path_to_jar'],
