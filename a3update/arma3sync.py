@@ -2,7 +2,6 @@ import os
 import click
 import subprocess
 import shutil
-import tempfile
 from a3update.a3update import _create_mod_link, _filename, _log
 
 
@@ -37,10 +36,17 @@ def update(mods, config_yaml):
     output_dir = config_yaml['a3sync']['directory']
 
     # Store .zsync files in a temporary directory
-    zsync_storage = tempfile.mkdtemp()
+    print('Caching .zsync files')
+    zsync_storage = os.path.join(output_dir, 'zsync-temp')
+    if os.path.exists(zsync_storage):
+        shutil.rmtree(zsync_storage)
+    os.mkdir(zsync_storage)
     cache_count = 0
     for root, dirs, files in os.walk(output_dir):
         temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
+
+        if root == zsync_storage:
+            continue
 
         if not os.path.exists(temp_dir):
             os.mkdir(temp_dir)
@@ -74,15 +80,18 @@ def update(mods, config_yaml):
                 _log('ERR: Conflicting external addon "{}"'.format(filename), e=True)
 
     # Retrieve stored .zsync files
+    print('Reusing cached .zsync files')
     uncache_count = 0
     for root, dirs, files in os.walk(output_dir):
         temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
 
         for f in files:
             zsync = f.join('.zsync')
-            if os.path.exists(zsync):
+            zsync_path = os.path.join(temp_dir, zsync)
+            if os.path.exists(zsync_path):
                 uncache_count += 1
-                shutil.copy(os.path.join(temp_dir, zsync), os.path.join(root, zsync))
+                shutil.copy(zsync_path, os.path.join(root, zsync))
+    shutil.rmtree(zsync_storage)
     print('Reused .zsync files:', uncache_count)
 
     subprocess.call(['java', '-jar',
