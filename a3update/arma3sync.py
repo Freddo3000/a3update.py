@@ -89,7 +89,7 @@ def update(mods, config_yaml):
         temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
 
         for f in files:
-            zsync = f.join('.zsync')
+            zsync = f +'.zsync'
             zsync_path = os.path.join(temp_dir, zsync)
             if os.path.exists(zsync_path):
                 uncache_count += 1
