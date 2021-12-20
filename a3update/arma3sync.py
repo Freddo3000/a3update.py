@@ -45,7 +45,7 @@ def update(mods, config_yaml):
     for root, dirs, files in os.walk(output_dir):
         temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
 
-        if root == zsync_storage:
+        if 'zsync-temp' in root:
             continue
 
         if not os.path.exists(temp_dir):
@@ -83,7 +83,7 @@ def update(mods, config_yaml):
     print('Reusing cached .zsync files')
     uncache_count = 0
     for root, dirs, files in os.walk(output_dir):
-        if root == zsync_storage:
+        if 'zsync-temp' in root:
             continue
 
         temp_dir = os.path.join(zsync_storage, os.path.relpath(root, output_dir))
