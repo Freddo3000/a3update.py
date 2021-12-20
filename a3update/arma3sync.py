@@ -94,6 +94,8 @@ def update(mods, config_yaml):
             if os.path.exists(zsync_path):
                 uncache_count += 1
                 shutil.copy(zsync_path, os.path.join(root, zsync))
+            else:
+                print('Cache miss:', zsync_path)
     shutil.rmtree(zsync_storage)
     print('Reused .zsync files:', uncache_count)
 
